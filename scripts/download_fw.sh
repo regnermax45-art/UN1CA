@@ -165,12 +165,32 @@ for i in "${FIRMWARES[@]}"; do
     LOG "- Downloading firmware..."
     [ -f "$ODIN_DIR/${MODEL}_${CSC}/.downloaded" ] && rm -rf "$ODIN_DIR/${MODEL}_${CSC}"
     mkdir -p "$ODIN_DIR/${MODEL}_${CSC}"
-    # shellcheck disable=SC2164
-    # Anan's samloader stores its logs in the current working directory, let's move into OUT_DIR just for this time
-    (
-    cd "$OUT_DIR"
-    samloader -m "$MODEL" -r "$CSC" -i "$IMEI" -s "$SERIAL_NO" download -O "$ODIN_DIR/${MODEL}_${CSC}" 1> /dev/null || exit 1
-    )
+    
+    # Special handling for Galaxy Z Flip5 (b5q) - use gdown instead of samloader
+    if [[ "$MODEL" == "SM-F731B" ]]; then
+        LOG "- Using custom download for Galaxy Z Flip5..."
+        
+        # Install gdown if not available
+        if ! command -v gdown &> /dev/null; then
+            LOG "- Installing gdown..."
+            pip3 install gdown || exit 1
+        fi
+        
+        # Download from Google Drive
+        LOG "- Downloading from Google Drive..."
+        (
+        cd "$ODIN_DIR/${MODEL}_${CSC}"
+        gdown "https://drive.google.com/uc?id=12ZgPAmHpzoNS4v3Z9M-0sZVV9s8P0cXh" || exit 1
+        )
+    else
+        # Use default samloader for other devices
+        # shellcheck disable=SC2164
+        # Anan's samloader stores its logs in the current working directory, let's move into OUT_DIR just for this time
+        (
+        cd "$OUT_DIR"
+        samloader -m "$MODEL" -r "$CSC" -i "$IMEI" -s "$SERIAL_NO" download -O "$ODIN_DIR/${MODEL}_${CSC}" 1> /dev/null || exit 1
+        )
+    fi
 
     ZIP_FILE="$(find "$ODIN_DIR/${MODEL}_${CSC}" -name "*.zip" | sort -r | head -n 1)"
     if [ ! "$ZIP_FILE" ] || [ ! -f "$ZIP_FILE" ]; then
