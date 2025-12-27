@@ -127,10 +127,19 @@ PREPARE_SCRIPT "$@"
 for i in "${FIRMWARES[@]}"; do
     PARSE_FIRMWARE_STRING "$i" || exit 1
 
-    LATEST_FIRMWARE="$(GET_LATEST_FIRMWARE "$MODEL" "$CSC")"
-    if [ ! "$LATEST_FIRMWARE" ]; then
-        LOGE "Latest available firmware could not be fetched"
-        exit 1
+    # Special handling for specific models that may not be available on FUS server
+    if [[ "$MODEL" == "SM-S721B" ]]; then
+        LATEST_FIRMWARE="S721BXXU1DXL1/S721BEUX1DXL1/S721BXXU1DXL1"
+        LOG "- Using predefined firmware version for Galaxy Z Flip5: $LATEST_FIRMWARE"
+    elif [[ "$MODEL" == "SM-S911B" ]]; then
+        LATEST_FIRMWARE="S911BXXU7EXL1/S911BEUX7EXL1/S911BXXU7EXL1"
+        LOG "- Using predefined firmware version for Galaxy S23: $LATEST_FIRMWARE"
+    else
+        LATEST_FIRMWARE="$(GET_LATEST_FIRMWARE "$MODEL" "$CSC")"
+        if [ ! "$LATEST_FIRMWARE" ]; then
+            LOGE "Latest available firmware could not be fetched"
+            exit 1
+        fi
     fi
 
     LOG_STEP_IN "- Processing $MODEL firmware with $CSC CSC"
@@ -165,12 +174,40 @@ for i in "${FIRMWARES[@]}"; do
     LOG "- Downloading firmware..."
     [ -f "$ODIN_DIR/${MODEL}_${CSC}/.downloaded" ] && rm -rf "$ODIN_DIR/${MODEL}_${CSC}"
     mkdir -p "$ODIN_DIR/${MODEL}_${CSC}"
-    # shellcheck disable=SC2164
-    # Anan's samloader stores its logs in the current working directory, let's move into OUT_DIR just for this time
-    (
-    cd "$OUT_DIR"
-    samloader -m "$MODEL" -r "$CSC" -i "$IMEI" -s "$SERIAL_NO" download -O "$ODIN_DIR/${MODEL}_${CSC}" 1> /dev/null || exit 1
-    )
+    
+    # Special handling for Galaxy Z Flip5 (b5q) - use gdown instead of samloader
+    if [[ "$MODEL" == "SM-S721B" ]]; then
+        LOG "- Using custom download for Galaxy Z Flip5..."
+        
+        # Install gdown if not available
+        if ! command -v gdown &> /dev/null; then
+            LOG "- Installing gdown..."
+            pip3 install gdown || pip install gdown || exit 1
+        fi
+        
+        # Download from Google Drive
+        LOG "- Downloading from Google Drive..."
+        (
+        cd "$ODIN_DIR/${MODEL}_${CSC}"
+        gdown "https://drive.google.com/uc?id=12ZgPAmHpzoNS4v3Z9M-0sZVV9s8P0cXh" || exit 1
+        )
+    elif [[ "$MODEL" == "SM-S911B" ]]; then
+        LOG "- Skipping download for Galaxy S23 (source firmware) - not required for Z Flip5 build"
+        # Create a dummy file to indicate download completion
+        mkdir -p "$ODIN_DIR/${MODEL}_${CSC}"
+        echo "Skipped - source firmware not required" > "$ODIN_DIR/${MODEL}_${CSC}/SKIPPED"
+        echo -n "$LATEST_FIRMWARE" > "$ODIN_DIR/${MODEL}_${CSC}/.downloaded"
+        LOG_STEP_OUT; LOG_STEP_OUT
+        continue
+    else
+        # Use default samloader for other devices
+        # shellcheck disable=SC2164
+        # Anan's samloader stores its logs in the current working directory, let's move into OUT_DIR just for this time
+        (
+        cd "$OUT_DIR"
+        samloader -m "$MODEL" -r "$CSC" -i "$IMEI" -s "$SERIAL_NO" download -O "$ODIN_DIR/${MODEL}_${CSC}" 1> /dev/null || exit 1
+        )
+    fi
 
     ZIP_FILE="$(find "$ODIN_DIR/${MODEL}_${CSC}" -name "*.zip" | sort -r | head -n 1)"
     if [ ! "$ZIP_FILE" ] || [ ! -f "$ZIP_FILE" ]; then

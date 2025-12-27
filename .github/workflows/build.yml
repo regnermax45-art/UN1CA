@@ -48,8 +48,15 @@ jobs:
           sudo modprobe erofs f2fs
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          echo -n "${{ secrets.PLATFORM_KEY_PK8 }}" | base64 --decode > security/unica_platform.pk8
-          echo -n "${{ secrets.PLATFORM_KEY_PEM }}" | base64 --decode > security/unica_platform.x509.pem
+          # Use custom platform keys if available, otherwise fallback to AOSP keys
+          if [ -n "${{ secrets.PLATFORM_KEY_PK8 }}" ] && [ -n "${{ secrets.PLATFORM_KEY_PEM }}" ]; then
+            echo -n "${{ secrets.PLATFORM_KEY_PK8 }}" | base64 --decode > security/unica_platform.pk8
+            echo -n "${{ secrets.PLATFORM_KEY_PEM }}" | base64 --decode > security/unica_platform.x509.pem
+          else
+            echo "Using AOSP platform keys as fallback"
+            cp security/aosp_platform.pk8 security/unica_platform.pk8
+            cp security/aosp_platform.x509.pem security/unica_platform.x509.pem
+          fi
 
       - name: Set up JDK 11
         uses: actions/setup-java@v4

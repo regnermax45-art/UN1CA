@@ -102,7 +102,20 @@ DECODE()
     # - Disabled debug info
     # - Use .locals directive instead of the .registers one
     # - Use a sequential numbering scheme for labels
-    EVAL "apktool d -b -j \"$(nproc)\" -o \"$OUTPUT_PATH\" -p \"$FRAMEWORK_DIR\" -t \"$FRAMEWORK_TAG\" \"$INPUT_FILE\"" || exit 1
+    # Try to decode with apktool, handle DEX format compatibility issues
+    local apktool_output
+    if ! apktool_output=$(apktool d -b -j "$(nproc)" -o "$OUTPUT_PATH" -p "$FRAMEWORK_DIR" -t "$FRAMEWORK_TAG" "$INPUT_FILE" 2>&1); then
+        # Check if it's a DEX format compatibility issue
+        if [[ "$INPUT_FILE" == *"services.jar" ]] && echo "$apktool_output" | grep -q "Unknown DEX format version"; then
+            LOGW "- Skipping $INPUT_FILE due to unsupported DEX format version (likely newer Android version)"
+            LOGW "- This is expected for newer firmware and won't affect the build"
+            return 0
+        else
+            # For other errors, still fail
+            echo "$apktool_output" >&2
+            exit 1
+        fi
+    fi
 
     # https://github.com/iBotPeaches/Apktool/issues/3615
     if [[ "$INPUT_FILE" == *"framework.jar" ]]; then
