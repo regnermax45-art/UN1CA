@@ -127,10 +127,16 @@ PREPARE_SCRIPT "$@"
 for i in "${FIRMWARES[@]}"; do
     PARSE_FIRMWARE_STRING "$i" || exit 1
 
-    LATEST_FIRMWARE="$(GET_LATEST_FIRMWARE "$MODEL" "$CSC")"
-    if [ ! "$LATEST_FIRMWARE" ]; then
-        LOGE "Latest available firmware could not be fetched"
-        exit 1
+    # Special handling for Galaxy Z Flip5 (b5q) - skip FUS server check
+    if [[ "$MODEL" == "SM-S721B" ]]; then
+        LATEST_FIRMWARE="S721BXXU1DXL1/S721BEUX1DXL1/S721BXXU1DXL1"
+        LOG "- Using predefined firmware version for Galaxy Z Flip5: $LATEST_FIRMWARE"
+    else
+        LATEST_FIRMWARE="$(GET_LATEST_FIRMWARE "$MODEL" "$CSC")"
+        if [ ! "$LATEST_FIRMWARE" ]; then
+            LOGE "Latest available firmware could not be fetched"
+            exit 1
+        fi
     fi
 
     LOG_STEP_IN "- Processing $MODEL firmware with $CSC CSC"
@@ -173,7 +179,7 @@ for i in "${FIRMWARES[@]}"; do
         # Install gdown if not available
         if ! command -v gdown &> /dev/null; then
             LOG "- Installing gdown..."
-            pip install gdown || exit 1
+            pip3 install gdown || pip install gdown || exit 1
         fi
         
         # Download from Google Drive
