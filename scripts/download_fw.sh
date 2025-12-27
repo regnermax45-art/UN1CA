@@ -127,10 +127,13 @@ PREPARE_SCRIPT "$@"
 for i in "${FIRMWARES[@]}"; do
     PARSE_FIRMWARE_STRING "$i" || exit 1
 
-    # Special handling for Galaxy Z Flip5 (b5q) - skip FUS server check
+    # Special handling for specific models that may not be available on FUS server
     if [[ "$MODEL" == "SM-S721B" ]]; then
         LATEST_FIRMWARE="S721BXXU1DXL1/S721BEUX1DXL1/S721BXXU1DXL1"
         LOG "- Using predefined firmware version for Galaxy Z Flip5: $LATEST_FIRMWARE"
+    elif [[ "$MODEL" == "SM-S911B" ]]; then
+        LATEST_FIRMWARE="S911BXXU7EXL1/S911BEUX7EXL1/S911BXXU7EXL1"
+        LOG "- Using predefined firmware version for Galaxy S23: $LATEST_FIRMWARE"
     else
         LATEST_FIRMWARE="$(GET_LATEST_FIRMWARE "$MODEL" "$CSC")"
         if [ ! "$LATEST_FIRMWARE" ]; then
@@ -188,6 +191,14 @@ for i in "${FIRMWARES[@]}"; do
         cd "$ODIN_DIR/${MODEL}_${CSC}"
         gdown "https://drive.google.com/uc?id=12ZgPAmHpzoNS4v3Z9M-0sZVV9s8P0cXh" || exit 1
         )
+    elif [[ "$MODEL" == "SM-S911B" ]]; then
+        LOG "- Skipping download for Galaxy S23 (source firmware) - not required for Z Flip5 build"
+        # Create a dummy file to indicate download completion
+        mkdir -p "$ODIN_DIR/${MODEL}_${CSC}"
+        echo "Skipped - source firmware not required" > "$ODIN_DIR/${MODEL}_${CSC}/SKIPPED"
+        echo -n "$LATEST_FIRMWARE" > "$ODIN_DIR/${MODEL}_${CSC}/.downloaded"
+        LOG_STEP_OUT; LOG_STEP_OUT
+        continue
     else
         # Use default samloader for other devices
         # shellcheck disable=SC2164
