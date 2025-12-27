@@ -167,7 +167,7 @@ for i in "${FIRMWARES[@]}"; do
     mkdir -p "$ODIN_DIR/${MODEL}_${CSC}"
     
     # Special handling for Galaxy Z Flip5 (b5q) - use gdown instead of samloader
-    if [[ "$MODEL" == "SM-F731B" ]]; then
+    if [[ "$MODEL" == "SM-S721B" ]]; then
         LOG "- Using custom download for Galaxy Z Flip5..."
         
         # Install gdown if not available
