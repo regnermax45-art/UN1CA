@@ -21,26 +21,37 @@ for i in $TARGET_NFC_CHIPNAMES; do
             continue
         else
             DELETE_FROM_WORK_DIR "system" "system/app/NfcNci/lib/arm64/libnfc_${i}_jni.so"
+            DELETE_FROM_WORK_DIR "system" "system/priv-app/NfcNci/lib/arm64/libnfc_${i}_jni.so"
             DELETE_FROM_WORK_DIR "system" "system/lib64/libnfc-${i}.so"
             DELETE_FROM_WORK_DIR "system" "system/lib64/libnfc_${i}_jni.so"
         fi
     elif [ -f "$TARGET_FIRMWARE_PATH/system/system/lib64/libnfc_${i}_jni.so" ]; then
-        ADD_TO_WORK_DIR "$TARGET_FIRMWARE_PATH" "system" "system/app/NfcNci/lib/arm64/libnfc_${i}_jni.so" 0 0 644 "u:object_r:system_file:s0"
-        ADD_TO_WORK_DIR "$TARGET_FIRMWARE_PATH" "system" "system/lib64/libnfc-${i}.so" 0 0 644 "u:object_r:system_lib_file:s0"
+        # Try to add from target firmware first
+        if [ -f "$TARGET_FIRMWARE_PATH/system/system/app/NfcNci/lib/arm64/libnfc_${i}_jni.so" ]; then
+            ADD_TO_WORK_DIR "$TARGET_FIRMWARE_PATH" "system" "system/app/NfcNci/lib/arm64/libnfc_${i}_jni.so" 0 0 644 "u:object_r:system_file:s0"
+        elif [ -f "$TARGET_FIRMWARE_PATH/system/system/priv-app/NfcNci/lib/arm64/libnfc_${i}_jni.so" ]; then
+            ADD_TO_WORK_DIR "$TARGET_FIRMWARE_PATH" "system" "system/priv-app/NfcNci/lib/arm64/libnfc_${i}_jni.so" 0 0 644 "u:object_r:system_file:s0"
+        fi
+        
+        # Add lib64 files if they exist
+        [ -f "$TARGET_FIRMWARE_PATH/system/system/lib64/libnfc-${i}.so" ] && \
+            ADD_TO_WORK_DIR "$TARGET_FIRMWARE_PATH" "system" "system/lib64/libnfc-${i}.so" 0 0 644 "u:object_r:system_lib_file:s0"
         ADD_TO_WORK_DIR "$TARGET_FIRMWARE_PATH" "system" "system/lib64/libnfc_${i}_jni.so" 0 0 644 "u:object_r:system_lib_file:s0"
 
         # Workaround for pre-U libs
         if [[ "$TARGET_API_LEVEL" -lt 34 ]]; then
-            sed -i "s/\<CoverAttached\>/coverAttached/g" "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so"
-            sed -i "s/\<StartLedCover\>/startLedCover/g" "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so"
-            sed -i "s/\<StopLedCover\>/stopLedCover/g" "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so"
-            sed -i "s/\<TransceiveLedCover\>/transceiveLedCover/g" "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so"
+            [ -f "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so" ] && {
+                sed -i "s/\<CoverAttached\>/coverAttached/g" "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so"
+                sed -i "s/\<StartLedCover\>/startLedCover/g" "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so"
+                sed -i "s/\<StopLedCover\>/stopLedCover/g" "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so"
+                sed -i "s/\<TransceiveLedCover\>/transceiveLedCover/g" "$WORK_DIR/system/system/lib64/libnfc_${i}_jni.so"
+            }
         fi
     fi
 done
 
 if [ -f "$WORK_DIR/system/system/lib64/libstatslog_nfc_nxp.so" ]; then
-    if grep -q -w "libstatslog_nfc_nxp" "$WORK_DIR/system/system/lib64/libnfc"*; then
+    if ls "$WORK_DIR/system/system/lib64/libnfc"* >/dev/null 2>&1 && grep -q -w "libstatslog_nfc_nxp" "$WORK_DIR/system/system/lib64/libnfc"* 2>/dev/null; then
         true
     else
         DELETE_FROM_WORK_DIR "system" "system/lib64/libstatslog_nfc_nxp.so"
@@ -50,7 +61,7 @@ elif [ -f "$TARGET_FIRMWARE_PATH/system/system/lib64/libstatslog_nfc_nxp.so" ]; 
 fi
 
 if [ -f "$WORK_DIR/system/system/lib64/libstatslog_nfc.so" ]; then
-    if grep -q -w "libstatslog_nfc" "$WORK_DIR/system/system/lib64/libnfc"*; then
+    if ls "$WORK_DIR/system/system/lib64/libnfc"* >/dev/null 2>&1 && grep -q -w "libstatslog_nfc" "$WORK_DIR/system/system/lib64/libnfc"* 2>/dev/null; then
         true
     else
         DELETE_FROM_WORK_DIR "system" "system/lib64/libstatslog_nfc.so"
@@ -60,7 +71,7 @@ elif [ -f "$TARGET_FIRMWARE_PATH/system/system/lib64/libstatslog_nfc.so" ]; then
 fi
 
 if [ -f "$WORK_DIR/system/system/lib64/libstatslog_nfc_st.so" ]; then
-    if grep -q -w "libstatslog_nfc_st" "$WORK_DIR/system/system/lib64/libnfc"*; then
+    if ls "$WORK_DIR/system/system/lib64/libnfc"* >/dev/null 2>&1 && grep -q -w "libstatslog_nfc_st" "$WORK_DIR/system/system/lib64/libnfc"* 2>/dev/null; then
         true
     else
         DELETE_FROM_WORK_DIR "system" "system/lib64/libstatslog_nfc_st.so"
@@ -92,10 +103,22 @@ if [[ "$SOURCE_ESE_CHIP_VENDOR" != "$TARGET_ESE_CHIP_VENDOR" ]] || \
         DELETE_FROM_WORK_DIR "system" "system/lib64/libspictrl.so"
         DELETE_FROM_WORK_DIR "system" "system/lib64/vendor.samsung.hardware.security.sem@1.0.so"
         DELETE_FROM_WORK_DIR "system" "system/priv-app/SEMFactoryApp"
-        ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib/hidl_tlc_payment_comm_client.so" 0 0 644 "u:object_r:system_lib_file:s0"
-        ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib/libtlc_payment_spay.so" 0 0 644 "u:object_r:system_lib_file:s0"
-        ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/hidl_tlc_payment_comm_client.so" 0 0 644 "u:object_r:system_lib_file:s0"
-        ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/libtlc_payment_spay.so" 0 0 644 "u:object_r:system_lib_file:s0"
+        # Use b5qxxx prebuilts for Galaxy Z Flip5, fallback to a73xqxx if not available
+        if [ -d "$SRC_DIR/prebuilts/samsung/b5qxxx" ]; then
+            ADD_TO_WORK_DIR "b5qxxx" "system" "system/lib/hidl_tlc_payment_comm_client.so" 0 0 644 "u:object_r:system_lib_file:s0" 2>/dev/null || \
+            ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib/hidl_tlc_payment_comm_client.so" 0 0 644 "u:object_r:system_lib_file:s0"
+            ADD_TO_WORK_DIR "b5qxxx" "system" "system/lib/libtlc_payment_spay.so" 0 0 644 "u:object_r:system_lib_file:s0" 2>/dev/null || \
+            ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib/libtlc_payment_spay.so" 0 0 644 "u:object_r:system_lib_file:s0"
+            ADD_TO_WORK_DIR "b5qxxx" "system" "system/lib64/hidl_tlc_payment_comm_client.so" 0 0 644 "u:object_r:system_lib_file:s0" 2>/dev/null || \
+            ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/hidl_tlc_payment_comm_client.so" 0 0 644 "u:object_r:system_lib_file:s0"
+            ADD_TO_WORK_DIR "b5qxxx" "system" "system/lib64/libtlc_payment_spay.so" 0 0 644 "u:object_r:system_lib_file:s0" 2>/dev/null || \
+            ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/libtlc_payment_spay.so" 0 0 644 "u:object_r:system_lib_file:s0"
+        else
+            ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib/hidl_tlc_payment_comm_client.so" 0 0 644 "u:object_r:system_lib_file:s0"
+            ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib/libtlc_payment_spay.so" 0 0 644 "u:object_r:system_lib_file:s0"
+            ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/hidl_tlc_payment_comm_client.so" 0 0 644 "u:object_r:system_lib_file:s0"
+            ADD_TO_WORK_DIR "a73xqxx" "system" "system/lib64/libtlc_payment_spay.so" 0 0 644 "u:object_r:system_lib_file:s0"
+        fi
         APPLY_PATCH "system" "system/framework/framework.jar" "$SRC_DIR/unica/patches/nfc/ese/framework.jar/0001-Disable-SemService.patch"
         APPLY_PATCH "system" "system/framework/services.jar" "$SRC_DIR/unica/patches/nfc/ese/services.jar/0001-Disable-SemService.patch"
     else
