@@ -173,7 +173,7 @@ for i in "${FIRMWARES[@]}"; do
         # Install gdown if not available
         if ! command -v gdown &> /dev/null; then
             LOG "- Installing gdown..."
-            pip3 install gdown || exit 1
+            pip install gdown || exit 1
         fi
         
         # Download from Google Drive
